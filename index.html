@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Ball Sort Solver</title>
+<style>
+body{background:#101827;color:white;font:16px Arial;text-align:center;padding:15px}
+h1{color:#8daaff}.panel{background:#1d293d;padding:18px;border-radius:15px;margin:15px auto;max-width:650px}
+#board{display:flex;justify-content:center;gap:12px;flex-wrap:wrap;margin:25px auto}
+.tube{display:flex;flex-direction:column-reverse;width:48px;height:150px;border:3px solid #aaa;border-top:0;border-radius:0 0 15px 15px;overflow:hidden}
+.ball{height:25%;border-top:1px solid #ffffff55}
+button,select{padding:11px;margin:5px;border:0;border-radius:9px;background:#34476a;color:white}
+button.primary{background:#587cf5}
+#palette{display:flex;justify-content:center;gap:8px;flex-wrap:wrap}
+.swatch{width:34px;height:34px;border:2px solid white;border-radius:50%;padding:0}
+.active{outline:3px solid white}
+#moves{line-height:2}
+</style>
+</head>
+<body>
+<h1>🧪 Ball Sort Solver</h1>
+<div class="panel">
+<p>Escolha uma cor e toque nos espaços dos tubos para preencher.</p>
+<select id="count"></select>
+<button onclick="setup()">Novo tabuleiro</button>
+<div id="palette"></div>
+<div id="board"></div>
+<button class="primary" onclick="solve()">RESOLVER</button>
+<p id="status">Cada cor deve aparecer 4 vezes.</p>
+</div>
+<div class="panel">
+<h3>Movimentos da solução</h3>
+<div id="moves"></div>
+</div>
+<script>
+const colors=['#ef4444','#3b82f6','#22c55e','#eab308','#a855f7','#f97316','#ec4899','#06b6d4','#84cc16','#aaa'];
+let tubes=[],color=0,solution=[];
+const $=id=>document.getElementById(id);
+for(let i=3;i<=16;i++)$('count').add(new Option(i+' tubos',i,i===6,i===6));
+function setup(){
+ tubes=Array.from({length:+$('count').value},()=>Array(4).fill(null));
+ solution=[];render();$('moves').innerHTML='';$('status').textContent='Escolha as cores.';
+}
+function render(){
+ $('palette').innerHTML='';
+ colors.forEach((c,i)=>{
+  let b=document.createElement('button');
+  b.className='swatch'+(i===color?' active':'');
+  b.style.background=c;b.onclick=()=>{color=i;render()};
+  $('palette').append(b);
+ });
+ $('board').innerHTML='';
+ tubes.forEach((t,i)=>{
+  let el=document.createElement('div');el.className='tube';
+  t.forEach((v,j)=>{
+   let b=document.createElement('div');b.className='ball';
+   b.style.background=v===null?'transparent':colors[v];
+   b.onclick=()=>{t[j]=v===null?color:null;solution=[];render()};
+   el.append(b);
+  });
+  $('board').append(el);
+ });
+}
+function key(s){return s.map(t=>t.join(',')).join('|')}
+function search(start){
+ let q=[{s:start.map(t=>t.filter(v=>v!==null)),p:[]}],head=0,seen=new Set([key(q[0].s)]);
+ while(head<q.length&&head<150000){
+  let {s,p}=q[head++];
+  if(s.every(t=>!t.length||(t.length===4&&t.every(v=>v===t[0]))))return p;
+  for(let i=0;i<s.length;i++){
+   if(!s[i].length)continue;
+   let c=s[i].at(-1),run=0;
+   while(run<s[i].length&&s[i][s[i].length-1-run]===c)run++;
+   for(let j=0;j<s.length;j++){
+    if(i===j||s[j].length===4)continue;
+    if(s[j].length&&s[j].at(-1)!==c)continue;
+    if(!s[j].length&&s[i].length===run)continue;
+    let n=s.map(t=>t.slice()),amount=Math.min(run,4-n[j].length);
+    for(let k=0;k<amount;k++)n[j].push(n[i].pop());
+    let kk=key(n);
+    if(!seen.has(kk)){seen.add(kk);q.push({s:n,p:[...p,[i+1,j+1]]})}
+   }
+  }
+ }
+ return null;
+}
+function solve(){
+ let vals=tubes.flat().filter(v=>v!==null),counts={};
+ vals.forEach(v=>counts[v]=(counts[v]||0)+1);
+ if(!vals.length){$('status').textContent='Preencha o tabuleiro primeiro.';return}
+ if(Object.values(counts).some(n=>n!==4)){
+  $('status').textContent='Cada cor precisa aparecer exatamente 4 vezes.';return;
+ }
+ $('status').textContent='Calculando...';
+ setTimeout(()=>{
+  solution=search(tubes);
+  $('status').textContent=solution?'Solução encontrada: '+solution.length+' movimentos.':'Não encontrei solução.';
+  $('moves').innerHTML=solution?solution.map((m,i)=>(i+1)+'. Tubo '+m[0]+' → Tubo '+m[1]).join('<br>'):'';
+ },30);
+}
+setup();
+</script>
+</body>
+</html>
